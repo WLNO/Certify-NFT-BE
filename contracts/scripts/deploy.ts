@@ -1,17 +1,25 @@
-import { ethers } from "hardhat"; 
+const { ethers } = require("hardhat");
 
 async function main() {
-  const [deployer] = await ethers.getSigners();
-  console.log("Deploying contracts with account:", deployer.address);
+  // Get the contract owner
+  const [owner] = await ethers.getSigners();
+  console.log("Deploying contracts with the account:", owner.address);
 
+  // Deploy the contract
   const CertificateNFT = await ethers.getContractFactory("CertificateNFT");
-  const contract = await CertificateNFT.deploy();
-  await contract.waitForDeployment();
+  const certificateNFT = await CertificateNFT.deploy();
+  await certificateNFT.waitForDeployment();
 
-  console.log("CertificateNFT deployed to:", contract.target); // atau contract.address
+  const address = await certificateNFT.getAddress();
+  console.log("CertificateNFT deployed to:", address);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+// This pattern is recommended by Hardhat
+if (require.main === module) {
+  main()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
+}
