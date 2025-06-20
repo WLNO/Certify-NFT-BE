@@ -24,6 +24,7 @@ export async function getCertificatesByOwner(ownerAddress: string): Promise<{ to
 
   const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL)
   const contract = new ethers.Contract(CONTRACT_ADDRESS, CertificateNFTJson.abi, provider)
+  
 
   // Fetch balance of NFTs owned
   const balance = await contract.balanceOf(ownerAddress)

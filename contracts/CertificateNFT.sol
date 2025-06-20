@@ -57,7 +57,7 @@ contract CertificateNFT is ERC721, ERC721Enumerable, ERC721URIStorage, AccessCon
         return super.tokenURI(tokenId);
     }
 
-    function verify(address owner, uint256 tokenId) public view returns (bool) 
+    function verifyCertificate(address owner, uint256 tokenId) public view returns (bool) 
     {
         return _exists(tokenId) && ownerOf(tokenId) == owner;
     }

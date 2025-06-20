@@ -3,24 +3,24 @@ import { verifyCertificate } from '../services/verifyService'
 
 const router = express.Router()
 
-router.get('/verify', async (req: Request, res: Response): Promise<void> => {
-  console.log('=== VERIFY ENDPOINT HIT ===')
+router.get('/verifycertificate', async (req: Request, res: Response): Promise<void> => {
+  console.log('=== VERIFY CERTIFICATE ENDPOINT HIT ===')
   console.log('Full URL:', req.url)
   console.log('Method:', req.method)
   
-  const { address, tokenId } = req.query
+  const { ownerAddress, tokenId } = req.query
   
   console.log('Raw query:', req.query)
-  console.log('Address received:', address)
+  console.log('ownerAddress received:', ownerAddress)
   console.log('TokenId received:', tokenId)
   
-  if (!address || !tokenId) {
-    res.status(400).json({ error: 'Missing address or tokenId' })
+  if (!ownerAddress || !tokenId) {
+    res.status(400).json({ error: 'Missing ownerAddress or tokenId' })
     return
   }
   
   try {
-    const result = await verifyCertificate(address as string, tokenId as string)
+    const result = await verifyCertificate(ownerAddress as string, tokenId as string)
     
     if (!result) {
       res.status(404).json({
@@ -49,9 +49,9 @@ router.get('/verify', async (req: Request, res: Response): Promise<void> => {
         })
         return
       }
-      if (err.message.includes('invalid address')) {
+      if (err.message.includes('invalid ownerAddress')) {
         res.status(400).json({
-          error: 'Invalid wallet address',
+          error: 'Invalid wallet ownerAddress',
           details: err.message
         })
         return
