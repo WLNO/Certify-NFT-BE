@@ -30,10 +30,36 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
 
     const txHash = await mintCertificate(to, tokenURI, certificateType)
 
+    // Convert tokenURI to gateway URL
+    let urlMetadata = ''
+    if (tokenURI && tokenURI.startsWith('ipfs://')) {
+      const hash = tokenURI.replace('ipfs://', '')
+      urlMetadata = `https://${hash}.ipfs.w3s.link/`
+    }
+
+    // Fetch metadata from IPFS and extract image for urlCertificate
+    let urlCertificate = ''
+    try {
+      if (urlMetadata) {
+        const response = await fetch(urlMetadata)
+        if (response.ok) {
+          const metadata = await response.json()
+          if (metadata.image && metadata.image.startsWith('ipfs://')) {
+            const imageHash = metadata.image.replace('ipfs://', '')
+            urlCertificate = `https://${imageHash}.ipfs.w3s.link/`
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch or parse metadata for urlCertificate:', err)
+    }
+
     res.status(201).json({
       message: 'Minting successful',
       to,
       tokenURI,
+      urlMetadata,
+      urlCertificate,
       certificateType,
       txHash,
     })
