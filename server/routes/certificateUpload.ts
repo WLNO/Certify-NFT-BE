@@ -7,13 +7,14 @@ const upload = multer() // Use memory storage for file uploads
 
 router.post('/upload', upload.single('image'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, description } = req.body
+    const { name, description, to } = req.body
     const file = (req as any).file
 
     // Detailed validation
     const errors: { [key: string]: string } = {}
     if (!name) errors.name = 'Missing name field'
     if (!description) errors.description = 'Missing description field'
+    if (!to) errors.to = 'Missing to (wallet address) field'
     if (!file) errors.image = 'Missing image file'
 
     if (Object.keys(errors).length > 0) {
@@ -30,6 +31,7 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
       name,
       description,
       image: `ipfs://${imageCid}`,
+      to
     }
 
     // Upload metadata to IPFS
@@ -40,6 +42,7 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
       message: 'Upload successful',
       tokenURI,
       certificateType: description,
+      to,
     })
   } catch (error) {
     console.error('Upload failed:', error)
