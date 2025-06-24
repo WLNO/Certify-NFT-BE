@@ -38,9 +38,25 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
     const metadataCid = await uploadToIPFS(JSON.stringify(metadata))
     const tokenURI = `ipfs://${metadataCid}`
 
+    // Convert tokenURI to gateway URL
+    let urlMetadata = ''
+    if (tokenURI.startsWith('ipfs://')) {
+      const hash = tokenURI.replace('ipfs://', '')
+      urlMetadata = `https://${hash}.ipfs.w3s.link/`
+    }
+
+    // Convert image field in metadata to gateway URL for urlCertificate
+    let urlCertificate = ''
+    if (metadata.image && metadata.image.startsWith('ipfs://')) {
+      const imageHash = metadata.image.replace('ipfs://', '')
+      urlCertificate = `https://${imageHash}.ipfs.w3s.link/`
+    }
+
     res.status(201).json({
       message: 'Upload successful',
       tokenURI,
+      urlMetadata,
+      urlCertificate,
       certificateType: description,
       to,
     })
