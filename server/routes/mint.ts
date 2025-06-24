@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express'
 import multer from 'multer'
 import { mintCertificate } from '../services/mintService'
+import { getCertificatesByOwner } from '../services/certificateService'
 
 const router = express.Router()
 const upload = multer()
@@ -13,12 +14,11 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
   console.log('===============================')
 
   try {
-    const { to, tokenURI, certificateType } = req.body
+    const { to, tokenURI } = req.body
 
     const errors: { [key: string]: string } = {}
     if (!to) errors.to = 'Missing recipient wallet address'
     if (!tokenURI) errors.tokenURI = 'Missing tokenURI (IPFS metadata)'
-    if (!certificateType) errors.certificateType = 'Missing certificateType (e.g., Certificate of Completion)'
 
     if (Object.keys(errors).length > 0) {
       res.status(400).json({
@@ -28,31 +28,43 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
       return
     }
 
-    const txHash = await mintCertificate(to, tokenURI, certificateType)
-
-    // Convert tokenURI to gateway URL
+    // Fetch metadata from IPFS and extract description for certificateType, and image for urlCertificate
     let urlMetadata = ''
+    let urlCertificate = ''
+    let certificateTypeFromMetadata = ''
     if (tokenURI && tokenURI.startsWith('ipfs://')) {
       const hash = tokenURI.replace('ipfs://', '')
       urlMetadata = `https://${hash}.ipfs.w3s.link/`
-    }
-
-    // Fetch metadata from IPFS and extract image for urlCertificate
-    let urlCertificate = ''
-    try {
-      if (urlMetadata) {
+      try {
         const response = await fetch(urlMetadata)
         if (response.ok) {
           const metadata = await response.json()
+          if (metadata.description) {
+            certificateTypeFromMetadata = metadata.description
+          }
           if (metadata.image && metadata.image.startsWith('ipfs://')) {
             const imageHash = metadata.image.replace('ipfs://', '')
             urlCertificate = `https://${imageHash}.ipfs.w3s.link/`
           }
         }
+      } catch (err) {
+        console.error('Failed to fetch or parse metadata for urlCertificate/certificateType:', err)
       }
-    } catch (err) {
-      console.error('Failed to fetch or parse metadata for urlCertificate:', err)
     }
+
+    // Anti-duplicate: check if wallet already owns NFT with same tokenURI
+    const existingCertificates = await getCertificatesByOwner(to)
+    const alreadyOwned = existingCertificates.some(cert => cert.tokenURI === tokenURI)
+    if (alreadyOwned) {
+      res.status(409).json({
+        error: 'Duplicate certificate',
+        message: 'Wallet already owns a certificate with this tokenURI.'
+      })
+      return
+    }
+
+    // Use certificateType from metadata for minting
+    const txHash = await mintCertificate(to, tokenURI, certificateTypeFromMetadata)
 
     res.status(201).json({
       message: 'Minting successful',
@@ -60,7 +72,7 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
       tokenURI,
       urlMetadata,
       urlCertificate,
-      certificateType,
+      certificateType: certificateTypeFromMetadata,
       txHash,
     })
   } catch (error) {
