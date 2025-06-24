@@ -50,7 +50,10 @@ Upload image and metadata to IPFS.
 {
   "message": "Upload successful",
   "tokenURI": "{{ipfs_gateway}}QmX...",
-  "certificateType": "Certificate of Completion for Web3 Development Course"
+  "urlMetadata": "https://QmX....ipfs.w3s.link/",
+  "urlCertificate": "https://QmY....ipfs.w3s.link/",
+  "certificateType": "Certificate of Completion for Web3 Development Course",
+  "to": "0x123..."
 }
 ```
 
@@ -102,14 +105,12 @@ Mint a new certificate NFT.
 |-------|------|----------|-------------|
 | to | string | Yes | Recipient's wallet address |
 | tokenURI | string | Yes | IPFS URI of the certificate metadata |
-| certificateType | string | Yes | Type of certificate |
 
 **Example Request:**
 ```json
 {
   "to": "0x123...",
-  "tokenURI": "{{ipfs_gateway}}QmX...",
-  "certificateType": "Certificate of Completion"
+  "tokenURI": "{{ipfs_gateway}}QmX..."
 }
 ```
 
@@ -121,24 +122,33 @@ Mint a new certificate NFT.
   "message": "Minting successful",
   "to": "0x123...",
   "tokenURI": "{{ipfs_gateway}}QmX...",
-  "certificateType": "Certificate of Completion",
+  "urlMetadata": "https://QmX....ipfs.w3s.link/",
+  "urlCertificate": "https://QmY....ipfs.w3s.link/",
+  "certificateType": "Certificate of Completion for Web3 Development Course",
   "txHash": "0xabc..."
 }
 ```
 
-2. **400 Bad Request**
+2. **409 Conflict (Duplicate Certificate)**
+```json
+{
+  "error": "Duplicate certificate",
+  "message": "Wallet already owns a certificate with this tokenURI."
+}
+```
+
+3. **400 Bad Request**
 ```json
 {
   "error": "Validation failed",
   "missingFields": {
     "to": "Missing recipient wallet address",
-    "tokenURI": "Missing tokenURI (IPFS metadata)",
-    "certificateType": "Missing certificateType"
+    "tokenURI": "Missing tokenURI (IPFS metadata)"
   }
 }
 ```
 
-3. **400 Bad Request (Invalid Address)**
+4. **400 Bad Request (Invalid Address)**
 ```json
 {
   "error": "Invalid wallet address",
@@ -146,7 +156,7 @@ Mint a new certificate NFT.
 }
 ```
 
-4. **400 Bad Request (Insufficient Funds)**
+5. **400 Bad Request (Insufficient Funds)**
 ```json
 {
   "error": "Insufficient funds for minting",
@@ -154,7 +164,7 @@ Mint a new certificate NFT.
 }
 ```
 
-5. **503 Service Unavailable**
+6. **503 Service Unavailable**
 ```json
 {
   "error": "Blockchain network unavailable",
@@ -162,7 +172,7 @@ Mint a new certificate NFT.
 }
 ```
 
-6. **500 Internal Server Error**
+7. **500 Internal Server Error**
 ```json
 {
   "error": "Minting failed",
