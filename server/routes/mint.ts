@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express'
 import multer from 'multer'
 import { mintCertificate } from '../services/mintService'
-import { getCertificatesByOwner, insertCertificate } from '../services/certificateService'
+import { getCertificatesByOwner, insertCertificate, generateMetadataForMint, checkEventHasCertificate, isUserEligibleForMint } from '../services/certificateService'
 
 const router = express.Router()
 const upload = multer()
@@ -14,12 +14,12 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
   console.log('===============================')
 
   try {
-    const { to, tokenURI, event_id } = req.body
+    const { user_address, event_id, tokenURI } = req.body
 
     const errors: { [key: string]: string } = {}
-    if (!to) errors.to = 'Missing recipient wallet address'
-    if (!tokenURI) errors.tokenURI = 'Missing tokenURI (IPFS metadata)'
+    if (!user_address) errors.user_address = 'Missing recipient wallet address'
     if (!event_id) errors.event_id = 'Missing event_id'
+    if (!tokenURI) errors.tokenURI = 'Missing tokenURI (IPFS metadata)'
 
     if (Object.keys(errors).length > 0) {
       res.status(400).json({
@@ -29,10 +29,30 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
       return
     }
 
-    // Fetch metadata from IPFS and extract description for certificateType, and image for urlCertificate
+    // Validasi: pastikan event memiliki sertifikat
+    const hasCert = await checkEventHasCertificate(Number(event_id))
+    if (!hasCert) {
+      res.status(400).json({
+        error: 'No certificate uploaded for this event',
+        message: 'The event does not have a certificate template uploaded by vendor yet.'
+      })
+      return
+    }
+
+    // Validasi: pastikan user ada di whitelist dan attendance untuk event
+    const eligible = await isUserEligibleForMint(user_address, Number(event_id))
+    if (!eligible) {
+      res.status(403).json({
+        error: 'User not eligible',
+        message: 'User must be whitelisted and marked present before minting.'
+      })
+      return
+    }
+
+    // Fetch metadata from IPFS berdasarkan tokenURI
     let urlMetadata = ''
     let urlCertificate = ''
-    let certificateTypeFromMetadata = ''
+    let certificateType = ''
     if (tokenURI && tokenURI.startsWith('ipfs://')) {
       const hash = tokenURI.replace('ipfs://', '')
       urlMetadata = `https://${hash}.ipfs.w3s.link/`
@@ -41,11 +61,18 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
         if (response.ok) {
           const metadata = await response.json()
           if (metadata.description) {
-            certificateTypeFromMetadata = metadata.description
+            certificateType = metadata.description
           }
-          if (metadata.image && metadata.image.startsWith('ipfs://')) {
-            const imageHash = metadata.image.replace('ipfs://', '')
-            urlCertificate = `https://${imageHash}.ipfs.w3s.link/`
+          if (metadata.image) {
+            if (metadata.image.startsWith('ipfs://')) {
+              const imageHash = metadata.image.replace('ipfs://', '')
+              urlCertificate = `https://${imageHash}.ipfs.w3s.link/`
+            } else if (metadata.image.startsWith('https://')) {
+              urlCertificate = metadata.image
+            } else {
+              // fallback: treat as raw hash
+              urlCertificate = `https://${metadata.image}.ipfs.w3s.link/`
+            }
           }
         }
       } catch (err) {
@@ -54,7 +81,7 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
     }
 
     // Anti-duplicate: check if wallet already owns NFT with same tokenURI
-    const existingCertificates = await getCertificatesByOwner(to)
+    const existingCertificates = await getCertificatesByOwner(user_address)
     const alreadyOwned = existingCertificates.some(cert => cert.tokenURI === tokenURI)
     if (alreadyOwned) {
       res.status(409).json({
@@ -64,33 +91,32 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
       return
     }
 
-    // Use certificateType from metadata for minting
-    const txHash = await mintCertificate(to, tokenURI, certificateTypeFromMetadata)
+    // Use certificateType for minting
+    const txHash = await mintCertificate(user_address, tokenURI, certificateType)
 
     // Insert ke database certificates
     try {
       await insertCertificate({
-        walletAddress: to,
-        eventId: event_id ? Number(event_id) : undefined,
-        certificateData: { to, tokenURI, urlMetadata, urlCertificate, certificateType: certificateTypeFromMetadata },
+        walletAddress: user_address,
+        eventId: Number(event_id),
+        certificateData: { user_address, tokenURI, urlMetadata, urlCertificate, certificateType },
         mintStatus: 'minted',
         mintTransactionHash: txHash,
         urlMetadata,
         urlCertificate,
-        certificateType: certificateTypeFromMetadata,
+        certificateType,
       })
     } catch (dbErr) {
       console.error('Gagal insert ke certificates:', dbErr)
-      // Tidak perlu return, tetap lanjut response sukses minting
     }
 
     res.status(201).json({
       message: 'Minting successful',
-      to,
+      user_address,
       tokenURI,
       urlMetadata,
       urlCertificate,
-      certificateType: certificateTypeFromMetadata,
+      certificateType,
       txHash,
     })
   } catch (error) {

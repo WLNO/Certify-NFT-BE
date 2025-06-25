@@ -32,16 +32,20 @@ Upload image and metadata to IPFS.
 |-------|------|----------|-------------|
 | name | string | Yes | Name of the certificate |
 | description | string | Yes | Description of the certificate |
+| user_address | string | Yes | Wallet address of the certificate recipient |
+| event_id | string/number | Yes | Event ID |
+| vendor_address | string | Yes | Wallet address of the vendor/uploader |
 | image | file | Yes | Certificate file (PDF/PNG/JPG) |
 
-**Example Request:**
-```json
-{
-  "name": "Web3 Development Certificate",
-  "description": "Certificate of Completion for Web3 Development Course",
-  "image": "Certificate.pdf"
-}
-```
+**Example Request (form-data):**
+| Key           | Value                                 |
+|---------------|---------------------------------------|
+| name          | Web3 Bootcamp Certificate             |
+| description   | Backend Developer of Certify-NFT Group|
+| user_address  | 0x1234567890abcdef1234567890abcdef12345678 |
+| event_id      | 42                                    |
+| vendor_address| 0x9eF545D8793dE53f17930E3b6fCdFeaC77ED0966 |
+| image         | (file upload)                         |
 
 **Response Codes:**
 
@@ -49,11 +53,9 @@ Upload image and metadata to IPFS.
 ```json
 {
   "message": "Upload successful",
-  "tokenURI": "{{ipfs_gateway}}QmX...",
-  "urlMetadata": "https://QmX....ipfs.w3s.link/",
-  "urlCertificate": "https://QmY....ipfs.w3s.link/",
-  "certificateType": "Certificate of Completion for Web3 Development Course",
-  "to": "0x123..."
+  "event_id": "42",
+  "tokenURI": "ipfs://bafkre...", // hash metadata JSON
+  "urlCertificate": "ipfs://bafybe..." // hash file gambar
 }
 ```
 
@@ -64,12 +66,22 @@ Upload image and metadata to IPFS.
   "missingFields": {
     "name": "Missing name field",
     "description": "Missing description field",
+    "user_address": "Missing user_address (wallet address) field",
+    "event_id": "Missing event_id",
+    "vendor_address": "Missing vendor wallet address",
     "image": "Missing image file"
   }
 }
 ```
 
-3. **400 Bad Request (Invalid File)**
+3. **404 Not Found (Vendor Not Found)**
+```json
+{
+  "error": "Vendor not found"
+}
+```
+
+4. **400 Bad Request (Invalid File)**
 ```json
 {
   "error": "Invalid file format",
@@ -77,7 +89,7 @@ Upload image and metadata to IPFS.
 }
 ```
 
-4. **503 Service Unavailable**
+5. **503 Service Unavailable (IPFS Error)**
 ```json
 {
   "error": "IPFS service unavailable",
@@ -85,7 +97,7 @@ Upload image and metadata to IPFS.
 }
 ```
 
-5. **500 Internal Server Error**
+6. **500 Internal Server Error**
 ```json
 {
   "error": "Internal server error during upload",
@@ -103,14 +115,16 @@ Mint a new certificate NFT.
 **Request Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| to | string | Yes | Recipient's wallet address |
-| tokenURI | string | Yes | IPFS URI of the certificate metadata |
+| user_address | string | Yes | Wallet address of the recipient |
+| tokenURI | string | Yes | IPFS URI of the certificate metadata (from upload) |
+| event_id | string/number | Yes | Event ID |
 
 **Example Request:**
 ```json
 {
-  "to": "0x123...",
-  "tokenURI": "{{ipfs_gateway}}QmX..."
+  "user_address": "0x123...",
+  "tokenURI": "ipfs://bafkre...",
+  "event_id": 42
 }
 ```
 
@@ -120,11 +134,11 @@ Mint a new certificate NFT.
 ```json
 {
   "message": "Minting successful",
-  "to": "0x123...",
-  "tokenURI": "{{ipfs_gateway}}QmX...",
-  "urlMetadata": "https://QmX....ipfs.w3s.link/",
-  "urlCertificate": "https://QmY....ipfs.w3s.link/",
-  "certificateType": "Certificate of Completion for Web3 Development Course",
+  "user_address": "0x123...",
+  "tokenURI": "ipfs://bafkre...",
+  "urlMetadata": "https://bafkre....ipfs.w3s.link/",
+  "urlCertificate": "https://bafybe....ipfs.w3s.link/",
+  "certificateType": "Backend Developer of Certify-NFT Group",
   "txHash": "0xabc..."
 }
 ```
@@ -142,13 +156,30 @@ Mint a new certificate NFT.
 {
   "error": "Validation failed",
   "missingFields": {
-    "to": "Missing recipient wallet address",
-    "tokenURI": "Missing tokenURI (IPFS metadata)"
+    "user_address": "Missing recipient wallet address",
+    "tokenURI": "Missing tokenURI (IPFS metadata)",
+    "event_id": "Missing event_id"
   }
 }
 ```
 
-4. **400 Bad Request (Invalid Address)**
+4. **400 Bad Request (User Not Eligible)**
+```json
+{
+  "error": "User not eligible",
+  "message": "User must be whitelisted and marked present before minting."
+}
+```
+
+5. **400 Bad Request (No Certificate Uploaded for Event)**
+```json
+{
+  "error": "No certificate uploaded for this event",
+  "message": "The event does not have a certificate template uploaded by vendor yet."
+}
+```
+
+6. **400 Bad Request (Invalid Address)**
 ```json
 {
   "error": "Invalid wallet address",
@@ -156,7 +187,7 @@ Mint a new certificate NFT.
 }
 ```
 
-5. **400 Bad Request (Insufficient Funds)**
+7. **400 Bad Request (Insufficient Funds)**
 ```json
 {
   "error": "Insufficient funds for minting",
@@ -164,7 +195,7 @@ Mint a new certificate NFT.
 }
 ```
 
-6. **503 Service Unavailable**
+8. **503 Service Unavailable (Blockchain Error)**
 ```json
 {
   "error": "Blockchain network unavailable",
@@ -172,10 +203,18 @@ Mint a new certificate NFT.
 }
 ```
 
-7. **500 Internal Server Error**
+9. **500 Internal Server Error**
 ```json
 {
   "error": "Minting failed",
+  "details": "Error message here"
+}
+```
+
+10. **500 Internal Server Error (Metadata Parsing)**
+```json
+{
+  "error": "Failed to fetch or parse metadata for urlCertificate/certificateType",
   "details": "Error message here"
 }
 ```

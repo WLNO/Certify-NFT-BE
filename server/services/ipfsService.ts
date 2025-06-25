@@ -49,3 +49,26 @@ export async function uploadToIPFS(content: File | Blob | Uint8Array | string): 
   const upload = await client.uploadFile(data)
   return upload.toString()
 }
+
+interface MetadataPayload {
+  name: string
+  description: string
+  image: string
+}
+
+export async function generateAndUploadMetadata(
+  userName: string,
+  description: string,
+  imageUrl: string
+): Promise<string> {
+  const metadata: MetadataPayload = {
+    name: userName,
+    description,
+    image: imageUrl
+  }
+
+  const metadataJson = JSON.stringify(metadata)
+  const tokenURI = await uploadToIPFS(metadataJson)
+
+  return `ipfs://${tokenURI}`
+}
