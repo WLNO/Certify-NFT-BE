@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express'
 import multer from 'multer'
 import { mintCertificate } from '../services/mintService'
-import { getCertificatesByOwner } from '../services/certificateService'
+import { getCertificatesByOwner, insertCertificate } from '../services/certificateService'
 
 const router = express.Router()
 const upload = multer()
@@ -14,11 +14,12 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
   console.log('===============================')
 
   try {
-    const { to, tokenURI } = req.body
+    const { to, tokenURI, event_id } = req.body
 
     const errors: { [key: string]: string } = {}
     if (!to) errors.to = 'Missing recipient wallet address'
     if (!tokenURI) errors.tokenURI = 'Missing tokenURI (IPFS metadata)'
+    if (!event_id) errors.event_id = 'Missing event_id'
 
     if (Object.keys(errors).length > 0) {
       res.status(400).json({
@@ -65,6 +66,23 @@ router.post('/mint', upload.none(), async (req: Request, res: Response): Promise
 
     // Use certificateType from metadata for minting
     const txHash = await mintCertificate(to, tokenURI, certificateTypeFromMetadata)
+
+    // Insert ke database certificates
+    try {
+      await insertCertificate({
+        walletAddress: to,
+        eventId: event_id ? Number(event_id) : undefined,
+        certificateData: { to, tokenURI, urlMetadata, urlCertificate, certificateType: certificateTypeFromMetadata },
+        mintStatus: 'minted',
+        mintTransactionHash: txHash,
+        urlMetadata,
+        urlCertificate,
+        certificateType: certificateTypeFromMetadata,
+      })
+    } catch (dbErr) {
+      console.error('Gagal insert ke certificates:', dbErr)
+      // Tidak perlu return, tetap lanjut response sukses minting
+    }
 
     res.status(201).json({
       message: 'Minting successful',
