@@ -38,6 +38,8 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
     // Upload image to IPFS
     const imageCid = await uploadToIPFS(file.buffer)
     const imageIpfsUrl = `ipfs://${imageCid}`
+    // Konversi ke URL gateway
+    const imageGatewayUrl = `https://${imageCid}.ipfs.w3s.link/`
 
     // Simpan ke event_certificates (ambil vendor.id dari wallet_address)
     const vendorResult = await pool.query(
@@ -54,12 +56,12 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
       INSERT INTO event_certificates (event_id, url_certificate, uploaded_by, description)
       VALUES ($1, $2, $3, $4)
       ON CONFLICT (event_id) DO UPDATE SET url_certificate = EXCLUDED.url_certificate, description = EXCLUDED.description
-    `, [event_id, imageIpfsUrl, vendorId, description])
+    `, [event_id, imageGatewayUrl, vendorId, description])
 
     res.status(201).json({
       message: 'Certificate template upload successful',
       event_id,
-      urlCertificate: imageIpfsUrl,
+      urlCertificate: imageGatewayUrl,
       description
     })
   } catch (error) {
