@@ -13,14 +13,11 @@ const pool = new Pool({ connectionString: process.env.DATABASE_DSN })
 
 router.post('/upload', upload.single('image'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, description, user_address, event_id, vendor_address } = req.body
+    const { event_id, vendor_address } = req.body
     const file = (req as any).file
 
     // Detailed validation
     const errors: { [key: string]: string } = {}
-    if (!name) errors.name = 'Missing name field'
-    if (!description) errors.description = 'Missing description field'
-    if (!user_address) errors.user_address = 'Missing user_address (wallet address) field'
     if (!file) errors.image = 'Missing image file'
     if (!event_id) errors.event_id = 'Missing event_id'
     if (!vendor_address) errors.vendor_address = 'Missing vendor wallet address'
@@ -42,7 +39,7 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
     const imageIpfsUrl = `ipfs://${imageCid}`
 
     // Simpan ke event_certificates (ambil vendor.id dari wallet_address)
-    const vendorResult = await pool.query(  
+    const vendorResult = await pool.query(
       'SELECT id FROM vendors WHERE LOWER(wallet_address) = $1',
       [vendor_address.toLowerCase()]
     )
@@ -58,35 +55,9 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
       ON CONFLICT (event_id) DO UPDATE SET url_certificate = EXCLUDED.url_certificate
     `, [event_id, imageIpfsUrl, vendorId])
 
-    const metadata = {
-      name,
-      description,
-      image: imageIpfsUrl,
-      user_address
-    }
-
-    // Upload metadata to IPFS
-    const metadataCid = await uploadToIPFS(JSON.stringify(metadata))
-    const tokenURI = `ipfs://${metadataCid}`
-
-    // Convert tokenURI to gateway URL
-    let urlMetadata = ''
-    if (tokenURI.startsWith('ipfs://')) {
-      const hash = tokenURI.replace('ipfs://', '')
-      urlMetadata = `https://${hash}.ipfs.w3s.link/`
-    }
-
-    // Convert image field in metadata to gateway URL for urlCertificate
-    let urlCertificate = ''
-    if (metadata.image && metadata.image.startsWith('ipfs://')) {
-      const imageHash = metadata.image.replace('ipfs://', '')
-      urlCertificate = `https://${imageHash}.ipfs.w3s.link/`
-    }
-
     res.status(201).json({
-      message: 'Upload successful',
+      message: 'Certificate template upload successful',
       event_id,
-      tokenURI,
       urlCertificate: imageIpfsUrl
     })
   } catch (error) {
