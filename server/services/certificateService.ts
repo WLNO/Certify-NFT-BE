@@ -107,16 +107,17 @@ export async function generateMetadataForMint(walletAddress: string, eventId: nu
   if (userRes.rowCount === 0) throw new Error('User not found')
   const userName = userRes.rows[0].name
 
-  // Ambil url_certificate dari event_certificates
+  // Ambil url_certificate dan description dari event_certificates
   const certRes = await pool.query(
-    'SELECT url_certificate FROM event_certificates WHERE event_id = $1',
+    'SELECT url_certificate, description FROM event_certificates WHERE event_id = $1',
     [eventId]
   )
   if (certRes.rowCount === 0) throw new Error('No certificate uploaded for this event')
   const urlCertificate = certRes.rows[0].url_certificate
+  const description = certRes.rows[0].description || `Certificate for Event ID ${eventId}`
 
   // Buat metadata dan upload
-  const certificateType = `Certificate for Event ID ${eventId}`
+  const certificateType = description
   const metadata = {
     name: userName,
     description: certificateType,

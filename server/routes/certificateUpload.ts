@@ -13,7 +13,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_DSN })
 
 router.post('/upload', upload.single('image'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { event_id, vendor_address } = req.body
+    const { event_id, vendor_address, description } = req.body
     const file = (req as any).file
 
     // Detailed validation
@@ -21,6 +21,7 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
     if (!file) errors.image = 'Missing image file'
     if (!event_id) errors.event_id = 'Missing event_id'
     if (!vendor_address) errors.vendor_address = 'Missing vendor wallet address'
+    if (!description) errors.description = 'Missing description field'
 
     if (Object.keys(errors).length > 0) {
       res.status(400).json({
@@ -50,15 +51,16 @@ router.post('/upload', upload.single('image'), async (req: Request, res: Respons
     const vendorId = vendorResult.rows[0].id
 
     await pool.query(`
-      INSERT INTO event_certificates (event_id, url_certificate, uploaded_by)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (event_id) DO UPDATE SET url_certificate = EXCLUDED.url_certificate
-    `, [event_id, imageIpfsUrl, vendorId])
+      INSERT INTO event_certificates (event_id, url_certificate, uploaded_by, description)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (event_id) DO UPDATE SET url_certificate = EXCLUDED.url_certificate, description = EXCLUDED.description
+    `, [event_id, imageIpfsUrl, vendorId, description])
 
     res.status(201).json({
       message: 'Certificate template upload successful',
       event_id,
-      urlCertificate: imageIpfsUrl
+      urlCertificate: imageIpfsUrl,
+      description
     })
   } catch (error) {
     console.error('Upload failed:', error)
