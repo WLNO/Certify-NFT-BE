@@ -27,9 +27,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/gpadaka
-            docker rm -f certify-nft-be || true
-            docker rmi -f certify-nft-be || true
-            rm -rf certify-nft
+            docker rm -f certify-nft-api1 || true
+            docker rmi -f certify-nft-api1 || true
+            rm -rf certify-nft-be
 
       - name: Copy project files to VPS
         uses: appleboy/scp-action@v0.1.4
@@ -38,7 +38,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "."
-          target: "/home/gpadaka/certify-nft"
+          target: "/home/gpadaka19/certify-nft-be"
 
       - name: Build & Compose on VPS
         uses: appleboy/ssh-action@v1.0.0
@@ -47,7 +47,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/gpadaka/certify-nft
+            cd /home/gpadaka19/certify-nft-be
             docker compose -f docker-compose.yml down
             docker compose -f docker-compose.yml build
             docker compose -f docker-compose.yml up -d
