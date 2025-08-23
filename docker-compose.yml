@@ -1,12 +1,12 @@
 services:
-  certify-nft-be:
-    container_name: certify-nft-be
+  certify-nft-api1:
+    container_name: certify-nft-api1
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "4000:4000"
-    restart: unless-stopped
+    restart: always
     env_file:
       - .env
     networks:
