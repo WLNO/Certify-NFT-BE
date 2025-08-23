@@ -1,6 +1,7 @@
 services:
   certify-nft-api1:
     container_name: certify-nft-api1
+    image: certify-nft-api1:latest
     build:
       context: .
       dockerfile: Dockerfile
