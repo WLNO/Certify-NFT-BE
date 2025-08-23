@@ -26,7 +26,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/gpadaka
+            cd /home/gpadaka19
             docker rm -f certify-nft-api1 || true
             docker rmi -f certify-nft-api1 || true
             rm -rf certify-nft-be
